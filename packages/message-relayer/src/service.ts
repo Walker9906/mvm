@@ -562,33 +562,42 @@ export class MessageRelayerService extends BaseService<MessageRelayerOptions> {
         stack: err.stack,
         code: err.code,
       })
-      await sleep(180*1000)
       
-      // retry once
-      try {
-        this.logger.info('Dry-run retry, checking to make sure proof would succeed...')
-  
-        await this.state.L1CrossDomainMessenger.connect(
-          this.options.l1Wallet
-        ).callStatic.relayMessageViaChainId(
-          this.options.l2ChainId,
-          message.target,
-          message.sender,
-          message.message,
-          message.messageNonce,
-          proof,
-          {
-            gasLimit: this.options.relayGasLimit,
-          }
-        )
-  
-        this.logger.info('Proof should succeed when retry. Submitting for real this time...')
-      } catch (err2) {
-        this.logger.error('Proof would fail, skipping', {
-          message: err2.toString(),
-          stack: err2.stack,
-          code: err2.code,
-        })
+      let retryResult = false
+      for(let i=0; i<10; i++) {
+        await sleep(180*1000)
+        
+        // retry once
+        try {
+          this.logger.info('Dry-run retry '+(i+1)+', checking to make sure proof would succeed...')
+    
+          await this.state.L1CrossDomainMessenger.connect(
+            this.options.l1Wallet
+          ).callStatic.relayMessageViaChainId(
+            this.options.l2ChainId,
+            message.target,
+            message.sender,
+            message.message,
+            message.messageNonce,
+            proof,
+            {
+              gasLimit: this.options.relayGasLimit,
+            }
+          )
+    
+          this.logger.info('Proof should succeed when retry. Submitting for real this time...')
+          retryResult = true
+          break
+        } catch (err2) {
+          this.logger.error('Proof would fail, skipping', {
+            message: err2.toString(),
+            stack: err2.stack,
+            code: err2.code,
+          })
+          // return
+        }
+      }
+      if(!retryResult) {
         return
       }
     }
