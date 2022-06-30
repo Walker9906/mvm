@@ -564,7 +564,7 @@ export class MessageRelayerService extends BaseService<MessageRelayerOptions> {
       })
       
       let retryResult = false
-      for(let i=0; i<10; i++) {
+      for(let i=0; i<50; i++) {
         await sleep(180*1000)
         
         // retry once
